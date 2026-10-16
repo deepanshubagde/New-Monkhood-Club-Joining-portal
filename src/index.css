@@ -73,34 +73,27 @@ button, a, [role="button"], input {
   cursor: pointer;
 }
 
-/* Fast tap response on mobile */
-.tap-instant {
-  transition: transform 60ms ease-out, filter 60ms ease-out, opacity 60ms ease-out;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-.tap-instant:active {
-  transform: scale(0.94) !important;
-  filter: brightness(0.90);
-}
-
-/* Highly tactile clicky button style for mobile & desktop */
-.btn-clicky {
-  transition: transform 65ms cubic-bezier(0.2, 0, 0, 1), box-shadow 65ms ease, filter 65ms ease;
+/* Fast tactile clicky response on mobile & desktop */
+.tap-instant, .btn-clicky {
+  transition: transform 60ms cubic-bezier(0.2, 0, 0, 1), box-shadow 60ms ease, filter 60ms ease, border-color 60ms ease;
   will-change: transform, box-shadow;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-.btn-clicky:hover {
+.tap-instant:hover, .btn-clicky:hover {
   transform: translateY(-2px) scale(1.02);
   filter: brightness(1.06);
 }
 
+.tap-instant:active, .tap-instant[data-active="true"],
 .btn-clicky:active, .btn-clicky[data-active="true"] {
   transform: translateY(2px) scale(0.94) !important;
-  filter: brightness(0.90) contrast(1.15) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 28px rgba(245, 215, 127, 0.65) !important;
+  filter: brightness(1.22) contrast(1.15) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 35px rgba(245, 215, 127, 0.8) !important;
+  border-color: rgba(254, 240, 138, 0.95) !important;
 }
 
 

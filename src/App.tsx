@@ -325,16 +325,33 @@ function PricingSection({
                 href={customMonthlyUrl}
                 target="_self"
                 rel="noopener"
-                onPointerDown={() => {
+                onPointerDown={(e) => {
+                  e.currentTarget.setAttribute('data-active', 'true');
                   playClickFeedback();
                   warmCheckout(customMonthlyUrl);
+                }}
+                onPointerUp={(e) => {
+                  e.currentTarget.removeAttribute('data-active');
+                }}
+                onPointerCancel={(e) => {
+                  e.currentTarget.removeAttribute('data-active');
+                }}
+                onPointerLeave={(e) => {
+                  e.currentTarget.removeAttribute('data-active');
+                }}
+                onTouchStart={(e) => {
+                  e.currentTarget.setAttribute('data-active', 'true');
+                  playClickFeedback();
+                  warmCheckout(customMonthlyUrl);
+                }}
+                onTouchEnd={(e) => {
+                  e.currentTarget.removeAttribute('data-active');
+                }}
+                onTouchCancel={(e) => {
+                  e.currentTarget.removeAttribute('data-active');
                 }}
                 onPointerEnter={() => warmCheckout(customMonthlyUrl)}
-                onTouchStart={() => {
-                  playClickFeedback();
-                  warmCheckout(customMonthlyUrl);
-                }}
-                className="w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase border shadow-[0_0_25px_rgba(212,175,55,0.25)] tap-instant cursor-pointer select-none transition-all duration-75 bg-gradient-to-r from-[#2a1b05] via-[#4d3209] to-[#2a1b05] hover:from-[#3d2808] hover:to-[#5e3d0a] text-amber-200 border-amber-500/60 hover:border-amber-300 active:scale-[0.97] active:brightness-90"
+                className="w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase border border-amber-500/60 hover:border-amber-300 shadow-[0_0_25px_rgba(212,175,55,0.35)] btn-clicky tap-instant cursor-pointer select-none bg-gradient-to-r from-[#2a1b05] via-[#4d3209] to-[#2a1b05] hover:from-[#3d2808] hover:to-[#5e3d0a] text-amber-200 active:scale-[0.94] active:translate-y-[2px]"
               >
                 Join Monthly
               </a>
@@ -405,16 +422,33 @@ function PricingSection({
                 href={customYearlyUrl}
                 target="_self"
                 rel="noopener"
-                onPointerDown={() => {
+                onPointerDown={(e) => {
+                  e.currentTarget.setAttribute('data-active', 'true');
                   playClickFeedback();
                   warmCheckout(customYearlyUrl);
+                }}
+                onPointerUp={(e) => {
+                  e.currentTarget.removeAttribute('data-active');
+                }}
+                onPointerCancel={(e) => {
+                  e.currentTarget.removeAttribute('data-active');
+                }}
+                onPointerLeave={(e) => {
+                  e.currentTarget.removeAttribute('data-active');
+                }}
+                onTouchStart={(e) => {
+                  e.currentTarget.setAttribute('data-active', 'true');
+                  playClickFeedback();
+                  warmCheckout(customYearlyUrl);
+                }}
+                onTouchEnd={(e) => {
+                  e.currentTarget.removeAttribute('data-active');
+                }}
+                onTouchCancel={(e) => {
+                  e.currentTarget.removeAttribute('data-active');
                 }}
                 onPointerEnter={() => warmCheckout(customYearlyUrl)}
-                onTouchStart={() => {
-                  playClickFeedback();
-                  warmCheckout(customYearlyUrl);
-                }}
-                className="w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase text-slate-950 shadow-[0_0_30px_rgba(245,215,127,0.5)] tap-instant cursor-pointer select-none transition-all duration-75 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-500 hover:brightness-110 active:scale-[0.97] active:brightness-90"
+                className="w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase text-slate-950 shadow-[0_0_30px_rgba(245,215,127,0.5)] btn-clicky tap-instant cursor-pointer select-none bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-500 hover:brightness-110 active:scale-[0.94] active:translate-y-[2px]"
               >
                 Join Yearly
               </a>
@@ -888,16 +922,33 @@ function BenefitsSection() {
           href={monthlyUrl}
           target="_self"
           rel="noopener"
-          onPointerDown={() => {
+          onPointerDown={(e) => {
+            e.currentTarget.setAttribute('data-active', 'true');
             playClickFeedback();
             warmCheckout(monthlyUrl);
+          }}
+          onPointerUp={(e) => {
+            e.currentTarget.removeAttribute('data-active');
+          }}
+          onPointerCancel={(e) => {
+            e.currentTarget.removeAttribute('data-active');
+          }}
+          onPointerLeave={(e) => {
+            e.currentTarget.removeAttribute('data-active');
+          }}
+          onTouchStart={(e) => {
+            e.currentTarget.setAttribute('data-active', 'true');
+            playClickFeedback();
+            warmCheckout(monthlyUrl);
+          }}
+          onTouchEnd={(e) => {
+            e.currentTarget.removeAttribute('data-active');
+          }}
+          onTouchCancel={(e) => {
+            e.currentTarget.removeAttribute('data-active');
           }}
           onPointerEnter={() => warmCheckout(monthlyUrl)}
-          onTouchStart={() => {
-            playClickFeedback();
-            warmCheckout(monthlyUrl);
-          }}
-          className="btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] tap-instant cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px] transition-all duration-75 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 active:scale-[0.97] active:brightness-90"
+          className="btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] tap-instant cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px] bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 active:scale-[0.94] active:translate-y-[2px]"
         >
           <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-12 animate-shimmer pointer-events-none" />
           <Sparkles className="w-4 h-4 text-slate-950 animate-pulse flex-shrink-0" />
@@ -914,16 +965,33 @@ function BenefitsSection() {
           href={yearlyUrl}
           target="_self"
           rel="noopener"
-          onPointerDown={() => {
+          onPointerDown={(e) => {
+            e.currentTarget.setAttribute('data-active', 'true');
             playClickFeedback();
             warmCheckout(yearlyUrl);
+          }}
+          onPointerUp={(e) => {
+            e.currentTarget.removeAttribute('data-active');
+          }}
+          onPointerCancel={(e) => {
+            e.currentTarget.removeAttribute('data-active');
+          }}
+          onPointerLeave={(e) => {
+            e.currentTarget.removeAttribute('data-active');
+          }}
+          onTouchStart={(e) => {
+            e.currentTarget.setAttribute('data-active', 'true');
+            playClickFeedback();
+            warmCheckout(yearlyUrl);
+          }}
+          onTouchEnd={(e) => {
+            e.currentTarget.removeAttribute('data-active');
+          }}
+          onTouchCancel={(e) => {
+            e.currentTarget.removeAttribute('data-active');
           }}
           onPointerEnter={() => warmCheckout(yearlyUrl)}
-          onTouchStart={() => {
-            playClickFeedback();
-            warmCheckout(yearlyUrl);
-          }}
-          className="btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] tap-instant cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px] transition-all duration-75 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 active:scale-[0.97] active:brightness-90"
+          className="btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] tap-instant cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px] bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 active:scale-[0.94] active:translate-y-[2px]"
         >
           <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-12 animate-shimmer pointer-events-none" />
           <Sparkles className="w-4 h-4 text-slate-950 animate-pulse flex-shrink-0" />
