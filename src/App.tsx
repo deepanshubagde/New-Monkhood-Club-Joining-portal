@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react';
 import {
   Sparkles,
   ArrowRight,
@@ -23,33 +23,84 @@ import {
   Flame,
   Heart,
   ArrowLeft,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 
-/* --- Tactile Haptic & Micro-Audio Click Engine --- */
-function playClickFeedback() {
-  try {
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(12);
+/* --- High-Speed Tactile Haptic & Micro-Audio Click Engine (Singleton) --- */
+let sharedAudioCtx: AudioContext | null = null;
+
+function getSharedAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtx) return null;
+  if (!sharedAudioCtx) {
+    try {
+      sharedAudioCtx = new AudioCtx();
+    } catch {
+      return null;
     }
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (AudioCtx) {
-      const ctx = new AudioCtx();
+  }
+  if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+    sharedAudioCtx.resume().catch(() => {});
+  }
+  return sharedAudioCtx;
+}
+
+export function playClickFeedback() {
+  try {
+    // Instant dual-pulse haptic vibration on mobile devices
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate([14, 20]);
+    }
+    const ctx = getSharedAudioContext();
+    if (ctx && ctx.state !== 'closed') {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(750, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(160, ctx.currentTime + 0.03);
-      gain.gain.setValueAtTime(0.09, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.028);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.028);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.035);
+      osc.stop(ctx.currentTime + 0.032);
     }
   } catch {
     // Silent fallback
   }
+}
+
+/* --- Speculative Connection & Cache Pre-warm Engine --- */
+export function warmCheckout(url: string) {
+  try {
+    const existing = document.querySelector(`link[data-warm="${url}"]`);
+    if (!existing) {
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.href = url;
+      link.setAttribute('data-warm', url);
+      document.head.appendChild(link);
+    }
+  } catch {
+    // Ignore
+  }
+}
+
+/* --- Checkout Context for Instant 0ms Visual Reaction Across App --- */
+interface CheckoutContextType {
+  redirectingPlan: string | null;
+  startCheckout: (url: string, planName: string, e?: React.MouseEvent | React.TouchEvent) => void;
+}
+
+const CheckoutContext = createContext<CheckoutContextType>({
+  redirectingPlan: null,
+  startCheckout: () => {}
+});
+
+function useCheckout() {
+  return useContext(CheckoutContext);
 }
 
 /* --- Lotus Sacred Geometry SVG Mandala (GPU Accelerated) --- */
@@ -265,6 +316,8 @@ function PricingSection({
   customMonthlyUrl?: string;
   customYearlyUrl?: string;
 }) {
+  const { redirectingPlan, startCheckout } = useCheckout();
+
   return (
     <section id="pricing-section" className="relative py-6 sm:py-8 px-3 sm:px-6 lg:px-8 max-w-5xl mx-auto z-10 scroll-mt-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-stretch pt-2">
@@ -308,12 +361,26 @@ function PricingSection({
             <a
               id="monthly-checkout-btn"
               href={customMonthlyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onPointerDown={playClickFeedback}
-              className="w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase bg-gradient-to-r from-[#2a1b05] via-[#4d3209] to-[#2a1b05] hover:from-[#3d2808] hover:to-[#5e3d0a] text-amber-200 border border-amber-500/60 hover:border-amber-300 shadow-[0_0_25px_rgba(212,175,55,0.25)] btn-clicky cursor-pointer select-none"
+              onClick={(e) => startCheckout(customMonthlyUrl, 'Monthly Membership', e)}
+              onPointerDown={() => {
+                playClickFeedback();
+                warmCheckout(customMonthlyUrl);
+              }}
+              onPointerEnter={() => warmCheckout(customMonthlyUrl)}
+              className={`w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase btn-clicky cursor-pointer select-none transition-all duration-150 ${
+                redirectingPlan?.includes('Monthly')
+                  ? 'bg-amber-600/40 text-amber-200 border-2 border-amber-300 ring-4 ring-amber-400/50 btn-redirecting'
+                  : 'bg-gradient-to-r from-[#2a1b05] via-[#4d3209] to-[#2a1b05] hover:from-[#3d2808] hover:to-[#5e3d0a] text-amber-200 border border-amber-500/60 hover:border-amber-300 shadow-[0_0_25px_rgba(212,175,55,0.25)]'
+              }`}
             >
-              Join Monthly
+              {redirectingPlan?.includes('Monthly') ? (
+                <span className="flex items-center justify-center space-x-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                  <span>Redirecting to Checkout...</span>
+                </span>
+              ) : (
+                'Join Monthly'
+              )}
             </a>
             <p className="text-[11px] text-center text-slate-400 mt-2.5">
               Renews automatically every month.
@@ -380,12 +447,26 @@ function PricingSection({
             <a
               id="yearly-checkout-btn"
               href={customYearlyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onPointerDown={playClickFeedback}
-              className="w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-500 hover:brightness-110 text-slate-950 shadow-[0_0_30px_rgba(245,215,127,0.5)] btn-clicky cursor-pointer select-none"
+              onClick={(e) => startCheckout(customYearlyUrl, 'Yearly Membership', e)}
+              onPointerDown={() => {
+                playClickFeedback();
+                warmCheckout(customYearlyUrl);
+              }}
+              onPointerEnter={() => warmCheckout(customYearlyUrl)}
+              className={`w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase btn-clicky cursor-pointer select-none transition-all duration-150 ${
+                redirectingPlan?.includes('Yearly')
+                  ? 'bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 text-slate-950 border-2 border-yellow-100 ring-4 ring-amber-300/60 btn-redirecting'
+                  : 'bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-500 hover:brightness-110 text-slate-950 shadow-[0_0_30px_rgba(245,215,127,0.5)]'
+              }`}
             >
-              Join Yearly
+              {redirectingPlan?.includes('Yearly') ? (
+                <span className="flex items-center justify-center space-x-2 text-slate-950 font-black">
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                  <span>Redirecting to Checkout...</span>
+                </span>
+              ) : (
+                'Join Yearly'
+              )}
             </a>
           </div>
         </div>
@@ -845,6 +926,8 @@ const benefits = [
 ];
 
 function BenefitsSection() {
+  const { redirectingPlan, startCheckout } = useCheckout();
+
   return (
     <section id="benefits-section" className="pt-1 sm:pt-2 pb-8 px-3 sm:px-6 lg:px-8 max-w-5xl mx-auto z-10 relative scroll-mt-6">
       <div className="flex flex-col items-center justify-center space-y-3.5 sm:space-y-4 mb-8 text-center w-full px-2">
@@ -852,36 +935,70 @@ function BenefitsSection() {
         <a
           id="benefits-join-monthly-btn"
           href="https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf"
-          target="_blank"
-          rel="noopener noreferrer"
-          onPointerDown={playClickFeedback}
-          className="btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px]"
+          onClick={(e) => startCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf", "Monthly Membership", e)}
+          onPointerDown={() => {
+            playClickFeedback();
+            warmCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf");
+          }}
+          onPointerEnter={() => warmCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf")}
+          className={`btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px] ${
+            redirectingPlan?.includes('Monthly') ? 'btn-redirecting ring-4 ring-yellow-200 scale-95' : ''
+          }`}
         >
-          <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-12 animate-shimmer pointer-events-none" />
-          <Sparkles className="w-4 h-4 text-slate-950 animate-pulse flex-shrink-0" />
-          <span className="font-extrabold tracking-widest truncate">Join Monkhood Club 51 per month</span>
-          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-950/20 border border-slate-950/25 text-slate-950 flex-shrink-0">
-            ₹51/mo
-          </span>
-          <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+          {redirectingPlan?.includes('Monthly') ? (
+            <span className="flex items-center space-x-2.5 text-slate-950 font-extrabold tracking-wider">
+              <Loader2 className="w-5 h-5 animate-spin text-slate-950 flex-shrink-0" />
+              <span>Redirecting to Checkout...</span>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-950/20 border border-slate-950/25 text-slate-950 flex-shrink-0">
+                ₹51/mo
+              </span>
+            </span>
+          ) : (
+            <>
+              <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-12 animate-shimmer pointer-events-none" />
+              <Sparkles className="w-4 h-4 text-slate-950 animate-pulse flex-shrink-0" />
+              <span className="font-extrabold tracking-widest truncate">Join Monkhood Club 51 per month</span>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-950/20 border border-slate-950/25 text-slate-950 flex-shrink-0">
+                ₹51/mo
+              </span>
+              <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+            </>
+          )}
         </a>
 
         {/* Yearly Shiny Button - Direct Payment Checkout */}
         <a
           id="benefits-join-yearly-btn"
           href="https://learn.monkhoodclub.com/l/6dce3137f9"
-          target="_blank"
-          rel="noopener noreferrer"
-          onPointerDown={playClickFeedback}
-          className="btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px]"
+          onClick={(e) => startCheckout("https://learn.monkhoodclub.com/l/6dce3137f9", "Yearly Membership", e)}
+          onPointerDown={() => {
+            playClickFeedback();
+            warmCheckout("https://learn.monkhoodclub.com/l/6dce3137f9");
+          }}
+          onPointerEnter={() => warmCheckout("https://learn.monkhoodclub.com/l/6dce3137f9")}
+          className={`btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px] ${
+            redirectingPlan?.includes('Yearly') ? 'btn-redirecting ring-4 ring-yellow-200 scale-95' : ''
+          }`}
         >
-          <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-12 animate-shimmer pointer-events-none" />
-          <Sparkles className="w-4 h-4 text-slate-950 animate-pulse flex-shrink-0" />
-          <span className="font-extrabold tracking-widest truncate">Join Monkhood Club 499 per year</span>
-          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-950/20 border border-slate-950/25 text-slate-950 flex-shrink-0">
-            ⚡ ₹499/yr
-          </span>
-          <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+          {redirectingPlan?.includes('Yearly') ? (
+            <span className="flex items-center space-x-2.5 text-slate-950 font-extrabold tracking-wider">
+              <Loader2 className="w-5 h-5 animate-spin text-slate-950 flex-shrink-0" />
+              <span>Redirecting to Checkout...</span>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-950/20 border border-slate-950/25 text-slate-950 flex-shrink-0">
+                ⚡ ₹499/yr
+              </span>
+            </span>
+          ) : (
+            <>
+              <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-12 animate-shimmer pointer-events-none" />
+              <Sparkles className="w-4 h-4 text-slate-950 animate-pulse flex-shrink-0" />
+              <span className="font-extrabold tracking-widest truncate">Join Monkhood Club 499 per year</span>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-950/20 border border-slate-950/25 text-slate-950 flex-shrink-0">
+                ⚡ ₹499/yr
+              </span>
+              <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+            </>
+          )}
         </a>
       </div>
 
@@ -952,6 +1069,7 @@ function NeedHelpSection() {
 /* --- Floating Fast Mobile Action Bar (Mobile-Only Experience) --- */
 function MobileFloatingActionBar() {
   const [visible, setVisible] = useState(false);
+  const { redirectingPlan, startCheckout } = useCheckout();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -980,23 +1098,55 @@ function MobileFloatingActionBar() {
         </div>
         <div className="flex items-center space-x-1.5">
           <a
+            id="mobile-sticky-monthly-btn"
             href="https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf"
-            target="_blank"
-            rel="noopener noreferrer"
-            onPointerDown={playClickFeedback}
-            className="px-3.5 py-2 rounded-full text-[11px] font-bold bg-[#1d162b] text-amber-200 border border-amber-500/40 btn-clicky block text-center select-none"
+            onClick={(e) => startCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf", "Monthly Membership", e)}
+            onPointerDown={() => {
+              playClickFeedback();
+              warmCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf");
+            }}
+            onPointerEnter={() => warmCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf")}
+            className={`px-3.5 py-2 rounded-full text-[11px] font-bold border btn-clicky block text-center select-none transition-all ${
+              redirectingPlan?.includes('Monthly')
+                ? 'bg-amber-600/40 text-amber-200 border-amber-300 btn-redirecting'
+                : 'bg-[#1d162b] text-amber-200 border-amber-500/40'
+            }`}
           >
-            Monthly ₹51
+            {redirectingPlan?.includes('Monthly') ? (
+              <span className="flex items-center space-x-1">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-300" />
+                <span>Opening...</span>
+              </span>
+            ) : (
+              'Monthly ₹51'
+            )}
           </a>
           <a
+            id="mobile-sticky-yearly-btn"
             href="https://learn.monkhoodclub.com/l/6dce3137f9"
-            target="_blank"
-            rel="noopener noreferrer"
-            onPointerDown={playClickFeedback}
-            className="px-4 py-2 rounded-full text-[11px] font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-[0_0_15px_rgba(245,215,127,0.5)] btn-clicky flex items-center space-x-1 text-center select-none"
+            onClick={(e) => startCheckout("https://learn.monkhoodclub.com/l/6dce3137f9", "Yearly Membership", e)}
+            onPointerDown={() => {
+              playClickFeedback();
+              warmCheckout("https://learn.monkhoodclub.com/l/6dce3137f9");
+            }}
+            onPointerEnter={() => warmCheckout("https://learn.monkhoodclub.com/l/6dce3137f9")}
+            className={`px-4 py-2 rounded-full text-[11px] font-black shadow-[0_0_15px_rgba(245,215,127,0.5)] btn-clicky flex items-center space-x-1 text-center select-none transition-all ${
+              redirectingPlan?.includes('Yearly')
+                ? 'bg-yellow-300 text-slate-950 btn-redirecting'
+                : 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950'
+            }`}
           >
-            <Zap className="w-3 h-3 text-slate-950 fill-current" />
-            <span>Yearly ₹499</span>
+            {redirectingPlan?.includes('Yearly') ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-950" />
+                <span>Opening...</span>
+              </>
+            ) : (
+              <>
+                <Zap className="w-3 h-3 text-slate-950 fill-current" />
+                <span>Yearly ₹499</span>
+              </>
+            )}
           </a>
         </div>
       </div>
@@ -1017,40 +1167,88 @@ function MainFooter() {
 
 /* --- Root App Component --- */
 export default function App() {
+  const [redirectingPlan, setRedirectingPlan] = useState<string | null>(null);
+
+  const startCheckout = useCallback((url: string, planName: string, e?: React.MouseEvent | React.TouchEvent) => {
+    // If keyboard modifier (Cmd/Ctrl) clicked on desktop, allow standard browser new tab
+    if (e && 'metaKey' in e && (e.metaKey || e.ctrlKey || e.shiftKey)) {
+      return;
+    }
+    if (e) {
+      e.preventDefault();
+    }
+
+    // 1. Instant tactile feedback: haptic vibration + crisp audio tick
+    playClickFeedback();
+
+    // 2. Instant 0ms visual transformation across UI
+    setRedirectingPlan(planName);
+
+    // 3. Immediate connection pre-warm
+    warmCheckout(url);
+
+    // 4. Instant direct navigation (fastest possible on mobile, eliminates tab creation lag)
+    try {
+      window.location.assign(url);
+    } catch {
+      window.location.href = url;
+    }
+
+    // Fallback reset if navigation cancelled or user navigates back
+    setTimeout(() => {
+      setRedirectingPlan(null);
+    }, 8000);
+  }, []);
+
   return (
-    <div className="min-h-screen text-slate-100 font-['Outfit',sans-serif] selection:bg-amber-500/30 selection:text-amber-200 antialiased relative overflow-x-hidden bg-[#05040a]">
-      {/* Sacred geometry & optimized ambient particle background */}
-      <AmbientBackground />
+    <CheckoutContext.Provider value={{ redirectingPlan, startCheckout }}>
+      <div className="min-h-screen text-slate-100 font-['Outfit',sans-serif] selection:bg-amber-500/30 selection:text-amber-200 antialiased relative overflow-x-hidden bg-[#05040a]">
+        {/* Instant Top Redirect Progress Banner */}
+        {redirectingPlan && (
+          <div className="fixed top-0 left-0 right-0 z-[100] animate-fadeIn pointer-events-none">
+            <div className="h-1 bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 animate-pulse w-full shadow-[0_0_20px_rgba(245,215,127,1)]" />
+            <div className="max-w-md mx-auto mt-2 px-3">
+              <div className="bg-[#0b0816]/95 border border-amber-400 text-amber-200 px-4 py-2 rounded-full shadow-[0_10px_35px_rgba(0,0,0,0.85),0_0_25px_rgba(245,215,127,0.4)] backdrop-blur-xl flex items-center justify-center space-x-2 text-xs font-bold text-center">
+                <Loader2 className="w-4 h-4 animate-spin text-amber-300 flex-shrink-0" />
+                <span className="truncate">Connecting to Secure Checkout for {redirectingPlan}...</span>
+              </div>
+            </div>
+          </div>
+        )}
 
-      {/* Main Page Content */}
-      <main className="space-y-2 relative z-10">
-        {/* Hero Artwork Banner */}
-        <HeroBanner />
+        {/* Sacred geometry & optimized ambient particle background */}
+        <AmbientBackground />
 
-        {/* Pricing Stack (Monthly & Yearly MOST POPULAR from join.monkhoodclub.com) */}
-        <PricingSection
-          customMonthlyUrl="https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf"
-          customYearlyUrl="https://learn.monkhoodclub.com/l/6dce3137f9"
-        />
+        {/* Main Page Content */}
+        <main className="space-y-2 relative z-10">
+          {/* Hero Artwork Banner */}
+          <HeroBanner />
 
-        {/* Simple Onboarding (Step 1, 2, 3) */}
-        <AccessGuideSection />
+          {/* Pricing Stack (Monthly & Yearly MOST POPULAR from join.monkhoodclub.com) */}
+          <PricingSection
+            customMonthlyUrl="https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf"
+            customYearlyUrl="https://learn.monkhoodclub.com/l/6dce3137f9"
+          />
 
-        {/* Get the Monkhood Club App & Interactive Carousel */}
-        <AppShowcaseSection />
+          {/* Simple Onboarding (Step 1, 2, 3) */}
+          <AccessGuideSection />
 
-        {/* Benefits Pills & Shiny Buttons */}
-        <BenefitsSection />
+          {/* Get the Monkhood Club App & Interactive Carousel */}
+          <AppShowcaseSection />
 
-        {/* Need Help Card */}
-        <NeedHelpSection />
-      </main>
+          {/* Benefits Pills & Shiny Buttons */}
+          <BenefitsSection />
 
-      {/* Floating 1-Tap Action Bar for Mobile Screens */}
-      <MobileFloatingActionBar />
+          {/* Need Help Card */}
+          <NeedHelpSection />
+        </main>
 
-      {/* Footer */}
-      <MainFooter />
-    </div>
+        {/* Floating 1-Tap Action Bar for Mobile Screens */}
+        <MobileFloatingActionBar />
+
+        {/* Footer */}
+        <MainFooter />
+      </div>
+    </CheckoutContext.Provider>
   );
 }
