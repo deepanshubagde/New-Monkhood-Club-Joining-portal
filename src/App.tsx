@@ -24,84 +24,86 @@ import {
   Heart,
   ArrowLeft,
   Zap,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 
-/* --- High-Speed Tactile Haptic & Micro-Audio Click Engine (Singleton) --- */
+/* --- Singleton Audio & Haptic Feedback Engine --- */
 let sharedAudioCtx: AudioContext | null = null;
 
-function getSharedAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) return null;
-  if (!sharedAudioCtx) {
-    try {
-      sharedAudioCtx = new AudioCtx();
-    } catch {
-      return null;
-    }
-  }
-  if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
-    sharedAudioCtx.resume().catch(() => {});
-  }
-  return sharedAudioCtx;
-}
-
 export function playClickFeedback() {
+  // 1. Dual haptic pulse on mobile devices (Android & iOS with vibration support)
   try {
-    // Instant dual-pulse haptic vibration on mobile devices
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate([14, 20]);
     }
-    const ctx = getSharedAudioContext();
-    if (ctx && ctx.state !== 'closed') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+  } catch {
+    // Silent fallback
+  }
+
+  // 2. Synthesized instant crisp micro-audio click tone (0ms latency, 0 external assets)
+  try {
+    const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (AudioCtxClass) {
+      if (!sharedAudioCtx) {
+        sharedAudioCtx = new AudioCtxClass();
+      }
+      if (sharedAudioCtx.state === 'suspended') {
+        sharedAudioCtx.resume();
+      }
+      const osc = sharedAudioCtx.createOscillator();
+      const gain = sharedAudioCtx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.028);
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.028);
+      osc.frequency.setValueAtTime(1200, sharedAudioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(300, sharedAudioCtx.currentTime + 0.035);
+      gain.gain.setValueAtTime(0.08, sharedAudioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, sharedAudioCtx.currentTime + 0.035);
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(sharedAudioCtx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.032);
+      osc.stop(sharedAudioCtx.currentTime + 0.035);
     }
   } catch {
     // Silent fallback
   }
 }
 
-/* --- Speculative Connection & Cache Pre-warm Engine --- */
+/* --- Pre-warm Checkout Socket & Document Cache --- */
+const warmedUrls = new Set<string>();
+
 export function warmCheckout(url: string) {
+  if (warmedUrls.has(url)) return;
+  warmedUrls.add(url);
   try {
-    const existing = document.querySelector(`link[data-warm="${url}"]`);
-    if (!existing) {
-      const link = document.createElement('link');
-      link.rel = 'prefetch';
-      link.href = url;
-      link.setAttribute('data-warm', url);
-      document.head.appendChild(link);
-    }
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.href = url;
+    link.as = 'document';
+    document.head.appendChild(link);
   } catch {
-    // Ignore
+    // fallback
+  }
+  try {
+    fetch(url, { mode: 'no-cors', priority: 'high' }).catch(() => {});
+  } catch {
+    // fallback
   }
 }
 
-/* --- Checkout Context for Instant 0ms Visual Reaction Across App --- */
+/* --- Global Fast Checkout Context --- */
 interface CheckoutContextType {
-  redirectingPlan: string | null;
-  startCheckout: (url: string, planName: string, e?: React.MouseEvent | React.TouchEvent) => void;
+  redirectingPlan: 'monthly' | 'yearly' | null;
+  startCheckout: (url: string, plan: 'monthly' | 'yearly', e?: React.MouseEvent | React.TouchEvent) => void;
+  warmCheckout: (url: string) => void;
 }
 
 const CheckoutContext = createContext<CheckoutContextType>({
   redirectingPlan: null,
-  startCheckout: () => {}
+  startCheckout: () => {},
+  warmCheckout: () => {},
 });
 
-function useCheckout() {
-  return useContext(CheckoutContext);
-}
+export const useCheckout = () => useContext(CheckoutContext);
 
 /* --- Lotus Sacred Geometry SVG Mandala (GPU Accelerated) --- */
 function LotusMandala({ className = "w-[600px] h-[600px] opacity-20" }: { className?: string }) {
@@ -316,160 +318,223 @@ function PricingSection({
   customMonthlyUrl?: string;
   customYearlyUrl?: string;
 }) {
-  const { redirectingPlan, startCheckout } = useCheckout();
+  const { redirectingPlan, startCheckout, warmCheckout } = useCheckout();
+  const [mobilePlanTab, setMobilePlanTab] = useState<'both' | 'yearly' | 'monthly'>('both');
+
+  // Prewarm checkout URLs when pricing section renders
+  useEffect(() => {
+    warmCheckout(customMonthlyUrl);
+    warmCheckout(customYearlyUrl);
+  }, [customMonthlyUrl, customYearlyUrl, warmCheckout]);
+
+  const showMonthly = mobilePlanTab === 'both' || mobilePlanTab === 'monthly';
+  const showYearly = mobilePlanTab === 'both' || mobilePlanTab === 'yearly';
 
   return (
     <section id="pricing-section" className="relative py-6 sm:py-8 px-3 sm:px-6 lg:px-8 max-w-5xl mx-auto z-10 scroll-mt-6">
+      {/* Mobile Instant Plan Selector (Eliminates mobile scroll delay & gives instant access) */}
+      <div className="sm:hidden flex items-center justify-center p-1 bg-[#0e0a1c] border border-amber-500/30 rounded-full max-w-xs mx-auto mb-5 shadow-lg">
+        <button
+          onClick={() => {
+            playClickFeedback();
+            setMobilePlanTab('yearly');
+          }}
+          className={`flex-1 py-1.5 px-2 rounded-full text-[11px] font-bold transition-all tap-instant ${
+            mobilePlanTab === 'yearly'
+              ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md scale-[1.02]'
+              : 'text-amber-300 hover:text-white'
+          }`}
+        >
+          ⚡ Yearly (₹499)
+        </button>
+        <button
+          onClick={() => {
+            playClickFeedback();
+            setMobilePlanTab('monthly');
+          }}
+          className={`flex-1 py-1.5 px-2 rounded-full text-[11px] font-bold transition-all tap-instant ${
+            mobilePlanTab === 'monthly'
+              ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md scale-[1.02]'
+              : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          Monthly (₹51)
+        </button>
+        <button
+          onClick={() => {
+            playClickFeedback();
+            setMobilePlanTab('both');
+          }}
+          className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all tap-instant ${
+            mobilePlanTab === 'both'
+              ? 'bg-slate-800 text-amber-300 border border-amber-500/40'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          Both
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-stretch pt-2">
         {/* Monthly Membership Card */}
-        <div
-          id="monthly-membership-card"
-          className="relative group rounded-3xl p-5 sm:p-8 bg-[#0b0816]/90 border border-amber-500/35 hover:border-amber-400/80 backdrop-blur-xl shadow-[0_0_35px_rgba(212,175,55,0.15)] hover:shadow-[0_0_55px_rgba(212,175,55,0.3)] transition-all duration-300 flex flex-col justify-between overflow-visible scroll-mt-10"
-        >
-          <div>
-            <h3 className="font-cinzel text-xl sm:text-3xl font-bold text-slate-100 tracking-wide mb-1 gold-text-gradient">
-              Monthly Membership
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-400 font-light mb-5 sm:mb-6">
-              Perfect to begin your mindfulness journey.
-            </p>
-            <div className="mb-5 sm:mb-6 flex items-baseline space-x-1.5 border-b border-amber-500/20 pb-5 sm:pb-6">
-              <span className="font-price text-5xl sm:text-6xl font-semibold gold-text-gradient tracking-tight">
-                ₹51
-              </span>
-              <span className="text-xs sm:text-sm text-slate-400 font-normal">
-                /month
-              </span>
-            </div>
-            <div className="mb-4">
-              <span className="text-[11px] font-bold tracking-[0.2em] text-slate-400 uppercase">
-                INCLUDES
-              </span>
-            </div>
-            <ul className="space-y-2.5 mb-6 sm:mb-8">
-              {monthlyFeatures.map((item, idx) => (
-                <li key={idx} className="flex items-center space-x-3 text-xs sm:text-sm text-slate-200">
-                  <span className="w-4 h-4 rounded-full bg-[#181308] border border-amber-600/40 flex items-center justify-center text-amber-500/80 text-[10px] flex-shrink-0">
-                    ✓
-                  </span>
-                  <span className="font-medium text-slate-200">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <a
-              id="monthly-checkout-btn"
-              href={customMonthlyUrl}
-              onClick={(e) => startCheckout(customMonthlyUrl, 'Monthly Membership', e)}
-              onPointerDown={() => {
-                playClickFeedback();
-                warmCheckout(customMonthlyUrl);
-              }}
-              onPointerEnter={() => warmCheckout(customMonthlyUrl)}
-              className={`w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase btn-clicky cursor-pointer select-none transition-all duration-150 ${
-                redirectingPlan?.includes('Monthly')
-                  ? 'bg-amber-600/40 text-amber-200 border-2 border-amber-300 ring-4 ring-amber-400/50 btn-redirecting'
-                  : 'bg-gradient-to-r from-[#2a1b05] via-[#4d3209] to-[#2a1b05] hover:from-[#3d2808] hover:to-[#5e3d0a] text-amber-200 border border-amber-500/60 hover:border-amber-300 shadow-[0_0_25px_rgba(212,175,55,0.25)]'
-              }`}
-            >
-              {redirectingPlan?.includes('Monthly') ? (
-                <span className="flex items-center justify-center space-x-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                  <span>Redirecting to Checkout...</span>
+        {showMonthly && (
+          <div
+            id="monthly-membership-card"
+            className="relative group rounded-3xl p-5 sm:p-8 bg-[#0b0816] border border-amber-500/35 hover:border-amber-400/80 shadow-[0_4px_30px_rgba(0,0,0,0.5),0_0_20px_rgba(212,175,55,0.12)] flex flex-col justify-between overflow-visible scroll-mt-10 transition-all"
+          >
+            <div>
+              <h3 className="font-cinzel text-xl sm:text-3xl font-bold text-slate-100 tracking-wide mb-1 gold-text-gradient">
+                Monthly Membership
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 font-light mb-5 sm:mb-6">
+                Perfect to begin your mindfulness journey.
+              </p>
+              <div className="mb-5 sm:mb-6 flex items-baseline space-x-1.5 border-b border-amber-500/20 pb-5 sm:pb-6">
+                <span className="font-price text-5xl sm:text-6xl font-semibold gold-text-gradient tracking-tight">
+                  ₹51
                 </span>
-              ) : (
-                'Join Monthly'
-              )}
-            </a>
-            <p className="text-[11px] text-center text-slate-400 mt-2.5">
-              Renews automatically every month.
-            </p>
+                <span className="text-xs sm:text-sm text-slate-400 font-normal">
+                  /month
+                </span>
+              </div>
+              <div className="mb-4">
+                <span className="text-[11px] font-bold tracking-[0.2em] text-slate-400 uppercase">
+                  INCLUDES
+                </span>
+              </div>
+              <ul className="space-y-2.5 mb-6 sm:mb-8">
+                {monthlyFeatures.map((item, idx) => (
+                  <li key={idx} className="flex items-center space-x-3 text-xs sm:text-sm text-slate-200">
+                    <span className="w-4 h-4 rounded-full bg-[#181308] border border-amber-600/40 flex items-center justify-center text-amber-500/80 text-[10px] flex-shrink-0">
+                      ✓
+                    </span>
+                    <span className="font-medium text-slate-200">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <a
+                id="monthly-checkout-btn"
+                href={customMonthlyUrl}
+                target="_self"
+                rel="noopener"
+                onPointerDown={() => playClickFeedback()}
+                onPointerEnter={() => warmCheckout(customMonthlyUrl)}
+                onTouchStart={() => {
+                  playClickFeedback();
+                  warmCheckout(customMonthlyUrl);
+                }}
+                onClick={(e) => startCheckout(customMonthlyUrl, 'monthly', e)}
+                className={`w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase border shadow-[0_0_25px_rgba(212,175,55,0.25)] tap-instant cursor-pointer select-none transition-all duration-75 ${
+                  redirectingPlan === 'monthly'
+                    ? 'bg-amber-500 text-slate-950 border-yellow-200 btn-redirecting ring-4 ring-amber-400/50'
+                    : 'bg-gradient-to-r from-[#2a1b05] via-[#4d3209] to-[#2a1b05] hover:from-[#3d2808] hover:to-[#5e3d0a] text-amber-200 border-amber-500/60 hover:border-amber-300'
+                }`}
+              >
+                {redirectingPlan === 'monthly' ? (
+                  <span className="inline-flex items-center justify-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                    <span>Opening Checkout...</span>
+                  </span>
+                ) : (
+                  'Join Monthly'
+                )}
+              </a>
+              <p className="text-[11px] text-center text-slate-400 mt-2.5">
+                Renews automatically every month.
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Yearly Membership Card - MOST POPULAR */}
-        <div
-          id="yearly-membership-card"
-          className="relative group rounded-3xl p-5 sm:p-8 pt-8 sm:pt-9 bg-[#0d091e]/90 border-2 border-amber-400/80 hover:border-amber-300 backdrop-blur-xl shadow-[0_0_50px_rgba(245,215,127,0.35)] transition-all duration-300 flex flex-col justify-between overflow-visible scroll-mt-10"
-        >
-          {/* Most Popular Floating Pill */}
-          <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
-            <span
-              id="yearly-badge"
-              className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 px-5 py-1.5 rounded-full text-[11px] font-black tracking-widest uppercase shadow-[0_0_25px_rgba(245,215,127,0.9)] flex items-center space-x-1.5 border border-yellow-200 whitespace-nowrap"
-            >
-              <span>⚡</span>
-              <span>MOST POPULAR</span>
-            </span>
-          </div>
+        {showYearly && (
+          <div
+            id="yearly-membership-card"
+            className="relative group rounded-3xl p-5 sm:p-8 pt-8 sm:pt-9 bg-[#0d091e] border-2 border-amber-400/80 hover:border-amber-300 shadow-[0_4px_30px_rgba(0,0,0,0.5),0_0_35px_rgba(245,215,127,0.25)] flex flex-col justify-between overflow-visible scroll-mt-10 transition-all"
+          >
+            {/* Most Popular Floating Pill */}
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+              <span
+                id="yearly-badge"
+                className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 px-5 py-1.5 rounded-full text-[11px] font-black tracking-widest uppercase shadow-[0_0_20px_rgba(245,215,127,0.8)] flex items-center space-x-1.5 border border-yellow-200 whitespace-nowrap"
+              >
+                <span>⚡</span>
+                <span>MOST POPULAR</span>
+              </span>
+            </div>
 
-          <div>
-            <h3 className="font-cinzel text-xl sm:text-3xl font-bold text-slate-100 tracking-wide mb-1 pt-1 gold-text-gradient">
-              Yearly Membership
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-300 font-light mb-5 sm:mb-6">
-              Pay once and enjoy the entire year.
-            </p>
-            <div className="mb-2 flex items-baseline space-x-2">
-              <span className="line-through text-slate-500 font-price text-lg sm:text-xl font-normal">
-                ₹612
-              </span>
-              <span className="font-price text-5xl sm:text-6xl font-semibold gold-text-gradient tracking-tight">
-                ₹499
-              </span>
-              <span className="text-xs sm:text-sm text-slate-400 font-normal">
-                /year
-              </span>
-            </div>
-            <div className="mb-5 sm:mb-6 border-b border-amber-500/20 pb-5 sm:pb-6">
-              <span className="text-[11px] font-bold tracking-wider text-amber-300 bg-amber-400/10 border border-amber-400/40 px-3 py-1 rounded-md shadow-[0_0_12px_rgba(245,215,127,0.25)]">
-                SAVE 18% • YOU SAVE ₹113
-              </span>
-            </div>
-            <div className="mb-4">
-              <span className="text-[11px] font-bold tracking-[0.2em] text-slate-400 uppercase">
-                EVERYTHING IN MONTHLY, PLUS
-              </span>
-            </div>
-            <ul className="space-y-2.5 mb-6 sm:mb-8">
-              {yearlyFeatures.map((item, idx) => (
-                <li key={idx} className="flex items-center space-x-3 text-xs sm:text-sm text-slate-200">
-                  <span className="w-4 h-4 rounded-full bg-[#181308] border border-amber-600/40 flex items-center justify-center text-amber-500/80 text-[10px] flex-shrink-0">
-                    ✓
-                  </span>
-                  <span className="font-medium text-slate-200">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <a
-              id="yearly-checkout-btn"
-              href={customYearlyUrl}
-              onClick={(e) => startCheckout(customYearlyUrl, 'Yearly Membership', e)}
-              onPointerDown={() => {
-                playClickFeedback();
-                warmCheckout(customYearlyUrl);
-              }}
-              onPointerEnter={() => warmCheckout(customYearlyUrl)}
-              className={`w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase btn-clicky cursor-pointer select-none transition-all duration-150 ${
-                redirectingPlan?.includes('Yearly')
-                  ? 'bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 text-slate-950 border-2 border-yellow-100 ring-4 ring-amber-300/60 btn-redirecting'
-                  : 'bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-500 hover:brightness-110 text-slate-950 shadow-[0_0_30px_rgba(245,215,127,0.5)]'
-              }`}
-            >
-              {redirectingPlan?.includes('Yearly') ? (
-                <span className="flex items-center justify-center space-x-2 text-slate-950 font-black">
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                  <span>Redirecting to Checkout...</span>
+            <div>
+              <h3 className="font-cinzel text-xl sm:text-3xl font-bold text-slate-100 tracking-wide mb-1 pt-1 gold-text-gradient">
+                Yearly Membership
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 font-light mb-5 sm:mb-6">
+                Pay once and enjoy the entire year.
+              </p>
+              <div className="mb-2 flex items-baseline space-x-2">
+                <span className="line-through text-slate-500 font-price text-lg sm:text-xl font-normal">
+                  ₹612
                 </span>
-              ) : (
-                'Join Yearly'
-              )}
-            </a>
+                <span className="font-price text-5xl sm:text-6xl font-semibold gold-text-gradient tracking-tight">
+                  ₹499
+                </span>
+                <span className="text-xs sm:text-sm text-slate-400 font-normal">
+                  /year
+                </span>
+              </div>
+              <div className="mb-5 sm:mb-6 border-b border-amber-500/20 pb-5 sm:pb-6">
+                <span className="text-[11px] font-bold tracking-wider text-amber-300 bg-amber-400/10 border border-amber-400/40 px-3 py-1 rounded-md shadow-[0_0_12px_rgba(245,215,127,0.25)]">
+                  SAVE 18% • YOU SAVE ₹113
+                </span>
+              </div>
+              <div className="mb-4">
+                <span className="text-[11px] font-bold tracking-[0.2em] text-slate-400 uppercase">
+                  EVERYTHING IN MONTHLY, PLUS
+                </span>
+              </div>
+              <ul className="space-y-2.5 mb-6 sm:mb-8">
+                {yearlyFeatures.map((item, idx) => (
+                  <li key={idx} className="flex items-center space-x-3 text-xs sm:text-sm text-slate-200">
+                    <span className="w-4 h-4 rounded-full bg-[#181308] border border-amber-600/40 flex items-center justify-center text-amber-500/80 text-[10px] flex-shrink-0">
+                      ✓
+                    </span>
+                    <span className="font-medium text-slate-200">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <a
+                id="yearly-checkout-btn"
+                href={customYearlyUrl}
+                target="_self"
+                rel="noopener"
+                onPointerDown={() => playClickFeedback()}
+                onPointerEnter={() => warmCheckout(customYearlyUrl)}
+                onTouchStart={() => {
+                  playClickFeedback();
+                  warmCheckout(customYearlyUrl);
+                }}
+                onClick={(e) => startCheckout(customYearlyUrl, 'yearly', e)}
+                className={`w-full block text-center py-3.5 px-6 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase text-slate-950 shadow-[0_0_30px_rgba(245,215,127,0.5)] tap-instant cursor-pointer select-none transition-all duration-75 ${
+                  redirectingPlan === 'yearly'
+                    ? 'bg-yellow-300 text-slate-950 btn-redirecting ring-4 ring-yellow-200'
+                    : 'bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-500 hover:brightness-110'
+                }`}
+              >
+                {redirectingPlan === 'yearly' ? (
+                  <span className="inline-flex items-center justify-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                    <span>Opening Checkout...</span>
+                  </span>
+                ) : (
+                  'Join Yearly'
+                )}
+              </a>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );
@@ -926,36 +991,38 @@ const benefits = [
 ];
 
 function BenefitsSection() {
-  const { redirectingPlan, startCheckout } = useCheckout();
+  const { redirectingPlan, startCheckout, warmCheckout } = useCheckout();
+  const monthlyUrl = "https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf";
+  const yearlyUrl = "https://learn.monkhoodclub.com/l/6dce3137f9";
 
   return (
     <section id="benefits-section" className="pt-1 sm:pt-2 pb-8 px-3 sm:px-6 lg:px-8 max-w-5xl mx-auto z-10 relative scroll-mt-6">
       <div className="flex flex-col items-center justify-center space-y-3.5 sm:space-y-4 mb-8 text-center w-full px-2">
-        {/* Monthly Shiny Button - Direct Payment Checkout */}
+        {/* Monthly Shiny Button - Direct Fast Payment Checkout */}
         <a
           id="benefits-join-monthly-btn"
-          href="https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf"
-          onClick={(e) => startCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf", "Monthly Membership", e)}
-          onPointerDown={() => {
+          href={monthlyUrl}
+          target="_self"
+          rel="noopener"
+          onPointerDown={() => playClickFeedback()}
+          onPointerEnter={() => warmCheckout(monthlyUrl)}
+          onTouchStart={() => {
             playClickFeedback();
-            warmCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf");
+            warmCheckout(monthlyUrl);
           }}
-          onPointerEnter={() => warmCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf")}
-          className={`btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px] ${
-            redirectingPlan?.includes('Monthly') ? 'btn-redirecting ring-4 ring-yellow-200 scale-95' : ''
+          onClick={(e) => startCheckout(monthlyUrl, 'monthly', e)}
+          className={`btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] tap-instant cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px] transition-all duration-75 ${
+            redirectingPlan === 'monthly' ? 'btn-redirecting ring-4 ring-amber-400' : 'bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500'
           }`}
         >
-          {redirectingPlan?.includes('Monthly') ? (
-            <span className="flex items-center space-x-2.5 text-slate-950 font-extrabold tracking-wider">
-              <Loader2 className="w-5 h-5 animate-spin text-slate-950 flex-shrink-0" />
-              <span>Redirecting to Checkout...</span>
-              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-950/20 border border-slate-950/25 text-slate-950 flex-shrink-0">
-                ₹51/mo
-              </span>
-            </span>
+          <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-12 animate-shimmer pointer-events-none" />
+          {redirectingPlan === 'monthly' ? (
+            <>
+              <Loader2 className="w-4 h-4 text-slate-950 animate-spin flex-shrink-0" />
+              <span className="font-extrabold tracking-widest">Opening Monthly Checkout...</span>
+            </>
           ) : (
             <>
-              <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-12 animate-shimmer pointer-events-none" />
               <Sparkles className="w-4 h-4 text-slate-950 animate-pulse flex-shrink-0" />
               <span className="font-extrabold tracking-widest truncate">Join Monkhood Club 51 per month</span>
               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-950/20 border border-slate-950/25 text-slate-950 flex-shrink-0">
@@ -966,31 +1033,31 @@ function BenefitsSection() {
           )}
         </a>
 
-        {/* Yearly Shiny Button - Direct Payment Checkout */}
+        {/* Yearly Shiny Button - Direct Fast Payment Checkout */}
         <a
           id="benefits-join-yearly-btn"
-          href="https://learn.monkhoodclub.com/l/6dce3137f9"
-          onClick={(e) => startCheckout("https://learn.monkhoodclub.com/l/6dce3137f9", "Yearly Membership", e)}
-          onPointerDown={() => {
+          href={yearlyUrl}
+          target="_self"
+          rel="noopener"
+          onPointerDown={() => playClickFeedback()}
+          onPointerEnter={() => warmCheckout(yearlyUrl)}
+          onTouchStart={() => {
             playClickFeedback();
-            warmCheckout("https://learn.monkhoodclub.com/l/6dce3137f9");
+            warmCheckout(yearlyUrl);
           }}
-          onPointerEnter={() => warmCheckout("https://learn.monkhoodclub.com/l/6dce3137f9")}
-          className={`btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px] ${
-            redirectingPlan?.includes('Yearly') ? 'btn-redirecting ring-4 ring-yellow-200 scale-95' : ''
+          onClick={(e) => startCheckout(yearlyUrl, 'yearly', e)}
+          className={`btn-clicky animate-gold-pulse group relative inline-flex items-center justify-center space-x-2.5 sm:space-x-3 w-full max-w-sm sm:w-auto px-6 sm:px-10 py-4 rounded-full font-black text-xs sm:text-sm tracking-widest uppercase text-slate-950 shadow-[0_0_35px_rgba(245,215,127,0.7)] hover:shadow-[0_0_65px_rgba(245,215,127,1)] tap-instant cursor-pointer overflow-hidden border-2 border-yellow-200 select-none min-h-[52px] transition-all duration-75 ${
+            redirectingPlan === 'yearly' ? 'btn-redirecting ring-4 ring-yellow-200' : 'bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500'
           }`}
         >
-          {redirectingPlan?.includes('Yearly') ? (
-            <span className="flex items-center space-x-2.5 text-slate-950 font-extrabold tracking-wider">
-              <Loader2 className="w-5 h-5 animate-spin text-slate-950 flex-shrink-0" />
-              <span>Redirecting to Checkout...</span>
-              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-950/20 border border-slate-950/25 text-slate-950 flex-shrink-0">
-                ⚡ ₹499/yr
-              </span>
-            </span>
+          <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-12 animate-shimmer pointer-events-none" />
+          {redirectingPlan === 'yearly' ? (
+            <>
+              <Loader2 className="w-4 h-4 text-slate-950 animate-spin flex-shrink-0" />
+              <span className="font-extrabold tracking-widest">Opening Yearly Checkout...</span>
+            </>
           ) : (
             <>
-              <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-12 animate-shimmer pointer-events-none" />
               <Sparkles className="w-4 h-4 text-slate-950 animate-pulse flex-shrink-0" />
               <span className="font-extrabold tracking-widest truncate">Join Monkhood Club 499 per year</span>
               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-950/20 border border-slate-950/25 text-slate-950 flex-shrink-0">
@@ -1069,7 +1136,9 @@ function NeedHelpSection() {
 /* --- Floating Fast Mobile Action Bar (Mobile-Only Experience) --- */
 function MobileFloatingActionBar() {
   const [visible, setVisible] = useState(false);
-  const { redirectingPlan, startCheckout } = useCheckout();
+  const { redirectingPlan, startCheckout, warmCheckout } = useCheckout();
+  const monthlyUrl = "https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf";
+  const yearlyUrl = "https://learn.monkhoodclub.com/l/6dce3137f9";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -1099,23 +1168,26 @@ function MobileFloatingActionBar() {
         <div className="flex items-center space-x-1.5">
           <a
             id="mobile-sticky-monthly-btn"
-            href="https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf"
-            onClick={(e) => startCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf", "Monthly Membership", e)}
-            onPointerDown={() => {
+            href={monthlyUrl}
+            target="_self"
+            rel="noopener"
+            onPointerDown={() => playClickFeedback()}
+            onPointerEnter={() => warmCheckout(monthlyUrl)}
+            onTouchStart={() => {
               playClickFeedback();
-              warmCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf");
+              warmCheckout(monthlyUrl);
             }}
-            onPointerEnter={() => warmCheckout("https://learn.monkhoodclub.com/web/checkout/6a690eba258d6e22aee85fcf")}
-            className={`px-3.5 py-2 rounded-full text-[11px] font-bold border btn-clicky block text-center select-none transition-all ${
-              redirectingPlan?.includes('Monthly')
-                ? 'bg-amber-600/40 text-amber-200 border-amber-300 btn-redirecting'
-                : 'bg-[#1d162b] text-amber-200 border-amber-500/40'
+            onClick={(e) => startCheckout(monthlyUrl, 'monthly', e)}
+            className={`px-3.5 py-2 rounded-full text-[11px] font-bold border border-amber-500/40 tap-instant block text-center select-none transition-all duration-75 ${
+              redirectingPlan === 'monthly'
+                ? 'bg-amber-400 text-slate-950 font-black'
+                : 'bg-[#1d162b] text-amber-200'
             }`}
           >
-            {redirectingPlan?.includes('Monthly') ? (
-              <span className="flex items-center space-x-1">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-300" />
-                <span>Opening...</span>
+            {redirectingPlan === 'monthly' ? (
+              <span className="inline-flex items-center space-x-1">
+                <Loader2 className="w-3 h-3 animate-spin text-slate-950" />
+                <span>Redirecting...</span>
               </span>
             ) : (
               'Monthly ₹51'
@@ -1123,24 +1195,27 @@ function MobileFloatingActionBar() {
           </a>
           <a
             id="mobile-sticky-yearly-btn"
-            href="https://learn.monkhoodclub.com/l/6dce3137f9"
-            onClick={(e) => startCheckout("https://learn.monkhoodclub.com/l/6dce3137f9", "Yearly Membership", e)}
-            onPointerDown={() => {
+            href={yearlyUrl}
+            target="_self"
+            rel="noopener"
+            onPointerDown={() => playClickFeedback()}
+            onPointerEnter={() => warmCheckout(yearlyUrl)}
+            onTouchStart={() => {
               playClickFeedback();
-              warmCheckout("https://learn.monkhoodclub.com/l/6dce3137f9");
+              warmCheckout(yearlyUrl);
             }}
-            onPointerEnter={() => warmCheckout("https://learn.monkhoodclub.com/l/6dce3137f9")}
-            className={`px-4 py-2 rounded-full text-[11px] font-black shadow-[0_0_15px_rgba(245,215,127,0.5)] btn-clicky flex items-center space-x-1 text-center select-none transition-all ${
-              redirectingPlan?.includes('Yearly')
-                ? 'bg-yellow-300 text-slate-950 btn-redirecting'
+            onClick={(e) => startCheckout(yearlyUrl, 'yearly', e)}
+            className={`px-4 py-2 rounded-full text-[11px] font-black shadow-[0_0_15px_rgba(245,215,127,0.5)] tap-instant flex items-center space-x-1 text-center select-none transition-all duration-75 ${
+              redirectingPlan === 'yearly'
+                ? 'bg-white text-slate-950 ring-2 ring-yellow-300'
                 : 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950'
             }`}
           >
-            {redirectingPlan?.includes('Yearly') ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-950" />
-                <span>Opening...</span>
-              </>
+            {redirectingPlan === 'yearly' ? (
+              <span className="inline-flex items-center space-x-1">
+                <Loader2 className="w-3 h-3 animate-spin text-slate-950" />
+                <span>Redirecting...</span>
+              </span>
             ) : (
               <>
                 <Zap className="w-3 h-3 text-slate-950 fill-current" />
@@ -1167,52 +1242,30 @@ function MainFooter() {
 
 /* --- Root App Component --- */
 export default function App() {
-  const [redirectingPlan, setRedirectingPlan] = useState<string | null>(null);
+  const [redirectingPlan, setRedirectingPlan] = useState<'monthly' | 'yearly' | null>(null);
 
-  const startCheckout = useCallback((url: string, planName: string, e?: React.MouseEvent | React.TouchEvent) => {
-    // If keyboard modifier (Cmd/Ctrl) clicked on desktop, allow standard browser new tab
-    if (e && 'metaKey' in e && (e.metaKey || e.ctrlKey || e.shiftKey)) {
-      return;
-    }
+  const startCheckout = useCallback((url: string, plan: 'monthly' | 'yearly', e?: React.MouseEvent | React.TouchEvent) => {
     if (e) {
       e.preventDefault();
     }
-
-    // 1. Instant tactile feedback: haptic vibration + crisp audio tick
     playClickFeedback();
-
-    // 2. Instant 0ms visual transformation across UI
-    setRedirectingPlan(planName);
-
-    // 3. Immediate connection pre-warm
+    setRedirectingPlan(plan);
     warmCheckout(url);
 
-    // 4. Instant direct navigation (fastest possible on mobile, eliminates tab creation lag)
-    try {
-      window.location.assign(url);
-    } catch {
-      window.location.href = url;
-    }
-
-    // Fallback reset if navigation cancelled or user navigates back
+    // Immediate navigation with tiny 20ms timeout so DOM has painted the visual active spinner
     setTimeout(() => {
-      setRedirectingPlan(null);
-    }, 8000);
+      window.location.assign(url);
+    }, 20);
   }, []);
 
   return (
-    <CheckoutContext.Provider value={{ redirectingPlan, startCheckout }}>
+    <CheckoutContext.Provider value={{ redirectingPlan, startCheckout, warmCheckout }}>
       <div className="min-h-screen text-slate-100 font-['Outfit',sans-serif] selection:bg-amber-500/30 selection:text-amber-200 antialiased relative overflow-x-hidden bg-[#05040a]">
-        {/* Instant Top Redirect Progress Banner */}
+        {/* Top-of-Screen Instant Redirect Bar */}
         {redirectingPlan && (
-          <div className="fixed top-0 left-0 right-0 z-[100] animate-fadeIn pointer-events-none">
-            <div className="h-1 bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 animate-pulse w-full shadow-[0_0_20px_rgba(245,215,127,1)]" />
-            <div className="max-w-md mx-auto mt-2 px-3">
-              <div className="bg-[#0b0816]/95 border border-amber-400 text-amber-200 px-4 py-2 rounded-full shadow-[0_10px_35px_rgba(0,0,0,0.85),0_0_25px_rgba(245,215,127,0.4)] backdrop-blur-xl flex items-center justify-center space-x-2 text-xs font-bold text-center">
-                <Loader2 className="w-4 h-4 animate-spin text-amber-300 flex-shrink-0" />
-                <span className="truncate">Connecting to Secure Checkout for {redirectingPlan}...</span>
-              </div>
-            </div>
+          <div className="fixed top-0 left-0 right-0 z-[100] bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 font-bold text-xs sm:text-sm py-2 px-4 shadow-[0_4px_30px_rgba(245,215,127,0.9)] flex items-center justify-center space-x-2 animate-fadeIn">
+            <Loader2 className="w-4 h-4 animate-spin text-slate-950 flex-shrink-0" />
+            <span>Redirecting to secure {redirectingPlan === 'yearly' ? 'Yearly' : 'Monthly'} checkout...</span>
           </div>
         )}
 
