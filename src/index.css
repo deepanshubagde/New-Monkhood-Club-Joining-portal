@@ -103,22 +103,7 @@ button, a, [role="button"], input {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 28px rgba(245, 215, 127, 0.65) !important;
 }
 
-/* Active Redirecting Pulse & Feedback State */
-@keyframes redirectPulse {
-  0%, 100% {
-    transform: scale(0.96);
-    box-shadow: 0 0 35px rgba(245, 215, 127, 0.8), 0 0 60px rgba(212, 175, 55, 0.5);
-  }
-  50% {
-    transform: scale(0.94);
-    box-shadow: 0 0 55px rgba(245, 215, 127, 1), 0 0 85px rgba(212, 175, 55, 0.7);
-  }
-}
 
-.btn-redirecting {
-  animation: redirectPulse 1s ease-in-out infinite !important;
-  pointer-events: none;
-}
 
 /* Breathing Golden Pulse for attracting clicks */
 @keyframes goldPulse {
